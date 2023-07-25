@@ -1,14 +1,8 @@
 # +
 import os, re, json, shutil 
 
-#os.system('pip install tqdm') # TODO add to dockerfile
-
-# jupyter labextension install jupyterlab-plotly # run in shell
-# ^ this doesn't look to be working. Here's the work around: save each plot to one file name
-# fig.write_html('00_plotly_current.html')
-# then in a split window one need only refresh to get the current plot. 
-# jk changing the renderer fixes this -v  # https://stackoverflow.com/questions/54064245/plot-ly-offline-mode-in-jupyter-lab-not-displaying-plots
 import plotly.io as pio
+# Changing the renderer to fix issue. See https://stackoverflow.com/questions/54064245/plot-ly-offline-mode-in-jupyter-lab-not-displaying-plots
 pio.renderers.default = 'iframe' # or 'notebook' or 'colab' or 'jupyterlab'
 
 import numpy as np
@@ -20,13 +14,6 @@ from scipy import stats # for qq plot
 from sklearn.metrics import mean_squared_error
 from sklearn.metrics import r2_score
 from sklearn.decomposition import PCA
-
-    # import tensorflow as tf
-    # from tensorflow import keras
-    # from tensorflow.keras import layers
-    # import tf_keras_vis
-    # from tf_keras_vis.saliency import Saliency
-    # from tf_keras_vis.utils import normalize
 
 # for simple MLP for ensembling
 from sklearn.neural_network import MLPRegressor
@@ -40,6 +27,7 @@ import plotly.graph_objects as go
 import datetime # For timing where %time doesn't work
 import tqdm
 import pickle as pkl
+
 # useful pattern for speeding up runs ----v
 # path = "./data_intermediates/cvFoldCenterScaleDict.p"
 # if os.path.exists(path):
@@ -49,8 +37,6 @@ import pickle as pkl
 # -
 
 overwrite_saved_files = False
-
-
 
 pio.renderers.default = [
     'iframe',
@@ -428,8 +414,6 @@ lmlike_res.retrieve_results()
 lmlike_res = lmlike_res.results
 
 # +
-# temp = ml_res['All']['knn']
-
 ## Create Empty Summary DataFrame ==============================================
 # Make a df with all the keys so we can populate it with the statistics we want.
 # make a df with all the keys for each experiment we ran. 
@@ -442,13 +426,11 @@ for key0 in ml_res.keys():
 for key0 in tf_res.keys():
     for key1 in tf_res[key0].keys():
         keys_to_get_ys.append(['tf_res', key0, key1])
-
         
 for key0 in lmlike_res.keys():
     for key1 in lmlike_res[key0].keys():
         for key2 in lmlike_res[key0][key1].keys():
             keys_to_get_ys.append(['lmlike_res', key0, key1, key2])
-
         
 for key0 in bglr_res.keys():
     for key1 in bglr_res[key0].keys():
@@ -475,7 +457,6 @@ def replace_na_w_0(in_df = temp,
 
 def calc_performances(observed, predicted, outtype = 'list'):
     r = stats.pearsonr(observed, predicted)[0] # index 1 is the p value
-#     r2 = r**2
     r2 = r2_score(observed, predicted)
     MSE = mean_squared_error(observed, predicted)
     RMSE = math.sqrt(MSE)
@@ -556,9 +537,6 @@ for i in summary_df.index:
 
         
     if source == 'bglr_res':
-        #print(key0, key1, key2)
-        
-        
         temp = pd.DataFrame() 
         temp['y_train'] = bglr_res[key0][key1][key2]['y_train']
         temp['yHat_train'] = bglr_res[key0][key1][key2]['yHat_train']
@@ -594,10 +572,6 @@ test_relRMSE = test_RMSE / np.nanmean(ys)
 test_normRMSE = test_RMSE / (np.nanmax(ys) - np.nanmin(ys))
 
 
-# pd.concat(summary_df , ['Mean', 'Mean', 0, np.nan, np.nan, train_MSE, train_RMSE, np.nan, np.nan, test_MSE, test_RMSE])
-# source	key0	key1	train_r	train_r2	train_mse	train_rmse	test_r	test_r2	test_mse	test_rmse
-
-
 temp = pd.DataFrame(
     zip(
     ['Mean', 'G', 'Mean',   np.nan, train_r2, train_MSE, train_RMSE, train_relRMSE, train_normRMSE,
@@ -612,7 +586,6 @@ temp = pd.DataFrame(
                             np.nan,  test_r2,  test_MSE,  test_RMSE,  test_relRMSE,  test_normRMSE])
 
 ).T
-
 
 
 temp = temp.rename(columns ={
@@ -694,37 +667,10 @@ summary_df.loc[summary_df.replicate.isna(), 'replicate'] = 0
 # +
 # parse lmlikes
 summary_df['annotation'] = ''
-# mask = summary_df.model_class == 'LM'
 
-
-# Note -- ubuntu seesm to have no issue with "*" but windows is representing it as "\uf02a"
-# to get around this I have duplicated some of the lines below. 
 lmlike_additional_info = pd.DataFrame([
-# Name     blue/p  annotation                   # Single Data Sources
 ['Mean',       'Fixed', 'Intercept Only'],      # |--Simple Fixed Models
-# ['g8f',        'Fixed', '31% Varience'],        # |  .
-# ['g50f',       'Fixed', '50% Varience'],        # |  .
-# ['s*f',        'Fixed', 'All Factors'],         # |  .
-# ['s\uf02af',        'Fixed', 'All Factors'],         # |  .     --------------------- dupe for encoding
-# ['w5f',        'Fixed', 'Top 5 Factors'],       # |  . 
-# ['w*f',        'Fixed', 'All Factors'],         # |  .
-# ['w\uf02af',        'Fixed', 'All Factors'],         # |  .     --------------------- dupe for encoding
-#                                                 # |--Simple Rand. Models
-# ['g8r',        'Rand.', '31% Varience'],        #    .
-# ['s*r',        'Rand.', 'All Factors'],         #    .
-# ['s\uf02ar',        'Rand.', 'All Factors'],         #    .     --------------------- dupe for encoding
-# ['w5r',        'Rand.', 'Top 5 Factors'],       #    .
-
-#                                                 # Multiple Sources of Data
-# ['g8fw5fs*f',  'Fixed', 'G+S+W'],               # |--Fixed
-# ['g8fw5fs\uf02af',  'Fixed', 'G+S+W'],               # |--Fixed --------------------- dupe for encoding
-# ['g8fw5f',     'Fixed', 'G+W'],                 # |  .
-# ['g8fw5f_gxw', 'Fixed', 'G+W+G:W'],             # |  . - Interaction
-#                                                 # |--Rand.
-# ['g8rw5r',     'Rand.', '(1|G)+(1|W)'],         #    .
-# ['g8rw5r_gxw', 'Rand.', '(1|G)+(1|W)+(1|G:W)'], #    . - Interaction
 ], columns = ['key1', 'effect_type', 'annotation'])
-
 
 for i in range(lmlike_additional_info.shape[0]):
     mask = (summary_df.key1 == lmlike_additional_info.loc[i, 'key1'])
@@ -733,25 +679,6 @@ for i in range(lmlike_additional_info.shape[0]):
 # -
 
 # ### For final figs
-
-# +
-# tmp = summary_df
-# tmp.head()
-
-# +
-# tmp2 = tmp
-
-# tmp2.loc[tmp2.model == 'rnr', 'model'] =  "Radius NR"
-# tmp2.loc[tmp2.model == 'knn', 'model'] =  "KNN"
-# tmp2.loc[tmp2.model == 'rf', 'model'] =  "Rand.Forest"
-# tmp2.loc[tmp2.model == 'svrl', 'model'] =  "SVR (linear)"
-
-# tmp2.loc[tmp2.model == 'lm', 'model'] =  "LM"
-
-# tmp2.loc[tmp2.annotation == 'Intercept Only', 'model'] =  "Training Mean"
-
-# +
-# tmp2.to_csv("../output/r_performance_across_models.csv")
 
 # +
 ## Edit the keys so there are consistent groupings =============================
@@ -946,15 +873,12 @@ foldwise_data_list.append({'train':{'y':y_train,
                             'test':{'y':y_test,
                                     'x':x_test} 
                       })
+# -
 
-# +
 x_train = foldwise_data_list[0]['train']['x']
 y_train = foldwise_data_list[0]['train']['y']
 x_test  = foldwise_data_list[0]['test' ]['x']
 y_test  = foldwise_data_list[0]['test' ]['y']
-
-# ### Load Models, Rebuild if needed.
-# -
 
 y_test.shape
 
@@ -999,10 +923,8 @@ def get_mod_multi_yyhat(model_type = 'lm', rep_n = '0', split = 'train'):
         temp = temp.loc[:, ['type', 'rep', 'split', 'y', 'yHat']]
     return(temp)
     
-
-
-# +
 # get_mod_multi_yyhat(model_type = 'lm', rep_n = '0', split = 'train')
+
 
 # +
 # be able to generate a list of lists with all the models and reps for a split
@@ -1084,9 +1006,6 @@ def get_rmse(observed, predicted):
     return(RMSE)
 
 
-
-
-
 # ## Setup train/test predictions and covariates
 
 # +
@@ -1116,14 +1035,13 @@ def get_mod_std(mod_list = ['lm_0', 'lm_1'],
                     df = mod_train):
     return(list(df.loc[:, mod_list].std(axis = 0)))
     
-
 # get_mod_rep_std(mod_list = ['lm_0', 'bglr_1'],
 #                 df = mod_train)
+
 
 # +
 # How much variability is there within each model type (in train set?)
 mod_types = ['lm', 'bglr', 'knn', 'rf', 'rnr', 'svrl', 'full', 'cat']
-
 
 replicate_variability_summary = pd.DataFrame([
     [e, get_mod_rep_std(
@@ -1133,19 +1051,6 @@ replicate_variability_summary = pd.DataFrame([
 
 replicate_variability_summary
 
-
-# +
-# Based on the above, I'm limiting the number of replicates of the models that would be expected to converge
-# and have std on the order of e-17 
-# - lm
-# - knn
-# - rnr
-
-# drop all but the 0th rep for these models
-# FIXME do we want to downsample or nah? --------------------------------------------------------------------------
-# for lst in [[e+'_'+str(9-i) for i in range(9)] for e in ['lm', 'knn', 'rnr']]:
-#     mod_train = mod_train.drop(columns=lst)
-#     mod_test = mod_test.drop(columns=lst)
 
 # +
 def get_mod_cols(
@@ -1167,9 +1072,9 @@ def get_all_mod_cols(
         out += col_list[i]
     return(out)
 
+
 # +
 # calculate several weighting options based on TESTING set
-
 
 all_mod_cols = get_all_mod_cols(df = mod_test, mod_types = mod_types)
 
@@ -1199,7 +1104,6 @@ inv_rmse_weights_test = [e/np.sum(temp) for e in temp]
 temp = get_mod_std(mod_list = all_mod_cols, df = mod_test)
 temp = [1/e for e in temp]
 inv_std_weights_test = [e/np.sum(temp) for e in temp]
-
 
 # weigting wrt inv var -------------------------------------------------------------
 temp = get_mod_std(mod_list = all_mod_cols, df = mod_test)
@@ -1244,9 +1148,9 @@ temp = get_mod_std(mod_list = all_mod_cols, df = mod_train)
 temp = [e**2 for e in temp]
 temp = [1/e for e in temp]
 inv_var_weights = [e/np.sum(temp) for e in temp]
+
+
 # -
-
-
 
 def weighted_sum_cols(mod_list = ['lm_0', 'cat_0'],
                       mod_weights = [0.5, 0.5],
@@ -1279,8 +1183,8 @@ def ftest(weight_list):
         predicted = temp)
     return(out)
 
-# +
 
+# -
 
 list_of_weight_lists = [uniform_weights,
 #                         uniform_by_type_weights,
@@ -1296,7 +1200,6 @@ list_of_weight_lists_names = ['uniform_weights',
                         ]
 ens_train_rmses = [ftrain(e) for e in list_of_weight_lists]
 ens_test_rmses  = [ftest(e) for e in list_of_weight_lists]
-# -
 
 # stack model (no validation) --------------------------------------------------
 regr = MLPRegressor(random_state=1, hidden_layer_sizes = (100, 100), max_iter=500)
@@ -1333,51 +1236,8 @@ pd.DataFrame(zip(
     ens_test_rmses), columns = ['EnsembleMethod', 'Train', 'Test'])
 
 
-
-
-
-
-
-# +
-# Is there a small MLP that would have performed well?
-# Yes, but none are stelar.
-
-# def f(sizes = (100), iters = 500):
-#     regr = MLPRegressor(random_state=1, hidden_layer_sizes = sizes, max_iter=iters)
-#     regr.fit(mod_train.loc[:, all_mod_cols], mod_train.loc[:, 'y'])
-#     out = [get_rmse(
-#             observed = mod_train['y'], 
-#             predicted = regr.predict(mod_train.loc[:, all_mod_cols])), 
-#            get_rmse(
-#             observed = mod_test['y'], 
-#             predicted = regr.predict(mod_test.loc[:, all_mod_cols]))]
-#     return(out)
-
-#  params = [(x, y) for x in [
-#      1, 3, 30, 60, 90,
-#      (1, 1), (3, 3), (30, 30), (60, 60), (90, 90)                      
-#                            ] for y in [1, 3, 30, 60, 90, 300]]
-    
-# rmses = [f(e[0], e[1]) for e in params]
-
-# rmses_summary = pd.concat([
-#     pd.DataFrame(params, columns = ['Neurons', 'Epochs']), 
-#     pd.DataFrame(rmses, columns = ['TrainRMSE', 'TestRMSE'])], axis = 1)
-
-# Neurons	Epochs	TrainRMSE	TestRMSE
-# (3, 3)	1	    0.585326	0.942080
-# 30    	1	    4.322395	0.960786
-# (90, 90)	3	    1.301509	1.014392
-# (3, 3)	3	    0.456046	1.022075
-# -
-
-
-
-# +
 # look for saturation within a model 
-
 # pass in a mod list so the same code can be reused for all models in addition to a single type
-
 def resample_model_averages(individual_mods = ['cat_'+str(i) for i in range(10)],
                             n_iter = 5,
                             p = None):
@@ -1439,8 +1299,6 @@ def resample_model_averages(individual_mods = ['cat_'+str(i) for i in range(10)]
                      all_reps_rmses])
     out = out.reset_index().drop(columns = 'index')
     return(out)
-# -
-
 
 
 # ## Table 1
@@ -1468,8 +1326,6 @@ temp["Percent"+best_loss_name+"RMSE"]= temp['TestRMSE']/float(best_loss['test_rm
 temp
 # -
 
-
-
 # ##  Supplemental Figure 1
 
 # ### Averaging within a model type
@@ -1495,31 +1351,6 @@ temp = pd.concat(resampled_model_averages_list)
 # temp.to_csv('../output/SFigure1_Data_RMSE_Ens_Reps.csv', index = False)
 
 px.scatter(temp, x = 'n_mods', y = 'rmse', color = 'mod_group', trendline = 'lowess')
-# -
-
-
-
-
-
-# +
-# temp = resample_model_averages(
-#     individual_mods = ['cat_'+str(i) for i in range(10)],
-#     n_iter = 50,
-#     p = None)
-# temp.head()
-
-# +
-# px.scatter(temp, x = 'n_mods', y = 'rmse', trendline='lowess')
-
-# +
-# temp = resample_model_averages(
-#     individual_mods = ['bglr_'+str(i) for i in range(10)],
-#     n_iter = 50,
-#     p = None)
-# temp.head()
-
-# +
-# px.box(temp, x = 'n_mods', y = 'rmse')
 # -
 
 # ### Averaging Across model types (weighting by model type)
@@ -1590,18 +1421,6 @@ if not os.path.exists(save_path.replace('.csv', '')+'_redo.csv'):
     temp.head()
     # px.box(temp, x = 'n_mods', y = 'rmse')
     px.scatter(temp, x = 'n_mods', y = 'rmse', trendline = 'lowess')
-
-# +
-
-# temp = resample_model_averages(
-#     individual_mods = ['bglr_'+str(i) for i in range(10)] + ['cat_'+str(i) for i in range(10)],
-#     n_iter = 50#,
-# #     p = uniform_by_type_weights
-# )
-# temp.head()
-# # px.box(temp, x = 'n_mods', y = 'rmse'#, box=True#, points="all"
-# #          )
-# px.scatter(temp, x = 'n_mods', y = 'rmse', trendline = 'lowess')
 # -
 
 # ### Average across all pairwise combinations 
@@ -1631,9 +1450,9 @@ if not os.path.exists(save_path.replace('.csv', '')+'_redo.csv'):
         temp = pd.concat(temp_list)
 
     #     temp.to_csv(save_path, index = False)
+
+
 # -
-
-
 
 # REDO and make it match expectations: ---------------------------------------
 # Copied from below
@@ -1681,99 +1500,6 @@ def simulate_chromosome(chromosome):
     return(phenotype)
 
 
-
-# +
-# (wishlist) I love the idea of makeing a version of this function that would allow for the number of models to vary independently.
-# That's easy to build but hard to visualize effectively (stacked surfaces)
-# And the genetic algorithm gets at this already.
-
-
-
-# def simulate_bimodel_ensemble(
-#     Model1 = 'lm',
-#     Model2 = 'bglr',
-#     ensemble = 'uniform_weights', #'uniform_by_type_weights', 'inv_std_weights', 
-#     #                'inv_var_weights', 'inv_rmse_weights',
-#     n_mods1 = 2, 
-#     n_mods2 = 2, 
-#     rmse_sim_iterations  = 50):
-
-#     in_chromosome = {
-#             'ensemble': '',
-#                   'lm': 0, 
-#                 'bglr': 0, 
-#                  'knn': 0, 
-#                   'rf': 0, 
-#                  'rnr': 0, 
-#                 'svrl': 0, 
-#                 'full': 0, 
-#                  'cat': 0   
-#         }
-#     in_chromosome['ensemble'] = ensemble
-#     in_chromosome[Model1] = n_mods1
-#     in_chromosome[Model2] = n_mods2
-
-#     out_rmses = [simulate_chromosome(chromosome = in_chromosome) for i in range(rmse_sim_iterations)]
-#     # make into nice df
-#     out_rmses = pd.DataFrame(out_rmses, columns=['rmse'])
-#     out_rmses[['Model1', 'Model2', 'n_mods1', 'n_mods2']] = Model1, Model2, n_mods1, n_mods2
-
-#     return(out_rmses)
-
-# M  = pd.concat([simulate_bimodel_ensemble(
-#     Model1 = 'bglr',
-#     Model2 = m2,
-#     ensemble = 'uniform_weights', #'uniform_by_type_weights', 'inv_std_weights', 
-#     #                'inv_var_weights', 'inv_rmse_weights',
-#     n_mods1 = x, 
-#     n_mods2 = y, 
-#     rmse_sim_iterations  = 20
-# ) for x in range(11) for y in range(11) for m2 in mod_list])
-
-
-
-# M = M.groupby(['Model1', 'Model2', 'n_mods1', 'n_mods2']).agg(rmse = ('rmse', np.mean)).reset_index()
-
-# import plotly.graph_objects as go
-
-# Model1 = list(set(M.Model1))[0]
-
-
-# fig = go.Figure()
-# for i in range(len(set(M.Model2))):
-#     Model2 = list(set(M.Model2))[i]
-#     ModelColor = ['#8ecae6', '#219ebc', '#023047', '#ffb703', '#fb8500', '#e63946', '#000000', '#8338ec'][i]
-    
-#     fig.add_trace(go.Mesh3d(x = M.loc[(M.Model2 == Model2), 'n_mods1'], 
-#                             y = M.loc[(M.Model2 == Model2), 'n_mods2'], 
-#                             z = M.loc[(M.Model2 == Model2), 'rmse'], 
-#                             name = Model2,
-# #                             legendgroup = Model2,
-# #                             legendgrouptitle  = {'text': Model2},
-#                             showlegend = True,
-#                             color= ModelColor,
-#                             opacity = 0.28))
-
-
-# fig.update_layout(
-#     title = "RMSE from Ensemble Containing "+Model1,
-    
-#     scene = dict(
-#         xaxis_title='# of '+Model1+' Models',
-#         yaxis_title='# of Other Models',
-#         zaxis_title='RMSE'),
-# #         width=700,
-# #         margin=dict(r=20, b=10, l=10, t=10)
-# )
-
-
-
-# fig.show()
-
-# import plotly
-# plotly.offline.plot(fig, filename='demo3d.html') 
-# -
-
 def simulate_bimodel_ensemble(
     Model1 = 'lm',
     Model2 = 'bglr',
@@ -1805,11 +1531,6 @@ def simulate_bimodel_ensemble(
     return(out_rmses)
 
 
-
-
-
-
-
 # +
 save_path = '../output/SFigure1_Data_RMSE_Ens_SelectMods_redo.csv'
 
@@ -1836,17 +1557,9 @@ else:
     sim_res = sim_res.loc[(sim_res.n_mods != 0)]
     sim_res.to_csv(save_path, index = False)
     # 5m 18s
+
+
 # -
-
-
-
-
-
-
-
-
-
-
 
 def simulate_allmodel_ensemble(
     ensemble = 'uniform_weights', #'uniform_by_type_weights', 'inv_std_weights', 
@@ -1874,24 +1587,6 @@ def simulate_allmodel_ensemble(
 
     return(out_rmses)
 
-# +
-# n_mods = 2
-
-# draw_reps = np.random.choice([key for key in in_chromosome.keys() if key != ensemble],  n_mods)
-# for draw_rep in draw_reps:
-#     in_chromosome[draw_rep] += 1
-
-
-
-# +
-# simulate_allmodel_ensemble(
-#     ensemble = 'uniform_weights', #'uniform_by_type_weights', 'inv_std_weights', 
-#     #                'inv_var_weights', 'inv_rmse_weights',
-#     n_mods = 2, 
-#     rmse_sim_iterations  = 50)
-# -
-
-
 
 # +
 save_path = '../output/SFigure1_Data_RMSE_Ens_AllMods_redo.csv'
@@ -1916,9 +1611,6 @@ else:
 # -
 
 px.box(sim_res, x = 'n_mods', y = 'rmse', color = 'ensemble')
-
-
-
 
 
 def simulate_any_n_model_ensemble(
@@ -1975,35 +1667,9 @@ else:
     sim_res.to_csv(save_path, index = False)
 # -
 
-
-
-
-
 # ## Figure 1
 
 # ### draw 2 models
-
-
-
-# +
-# single model performance
-# summary_df.loc[summary_df.data_source == 'Multi', ['data_source', 'model_class', 'model', 'replicate', 'test_rmse']
-#          ].to_csv('../output/Figure1_Data_1Mod.csv', index = False)
-# -
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 temp = [[x, y] for x in all_mod_cols for y in all_mod_cols]
 temp = pd.DataFrame(temp, columns=['Model1', 'Model2'])
@@ -2035,17 +1701,6 @@ temp_wide = temp_wide.drop(columns='Model1')
 
 px.imshow(temp_wide)
 
-
-
-
-
-# +
-# px.scatter_3d(temp, 
-#               x = "Model1", y = "Model2", z = "RMSE", 
-#               color = "RMSE", 
-# #          size = "RMSE"
-#              )
-# -
 
 # # Genetic Algorithm
 
@@ -2148,9 +1803,6 @@ def simulate_chromosome(chromosome, calc_phenotype_with = 'test'):
     return(phenotype)
 
 # propagate
-# -
-
-
 
 # +
 # Simulate the best model
@@ -2189,111 +1841,12 @@ else:
             'full': 0, 
              'cat': 6   
         }) for i in range(50)]})
-    
-# best_GA['Model'] = 'GA'
-# -
-
-px.box(best_GA, x = 'Model', y = 'RMSE')
 
 # +
-# Influence of weighting by inverse variation istead of rmse
-best_GA_var = pd.DataFrame({'RMSE': [
+GA_test_best['Model'] = 'GA'
+GA_test_best_inv_var['Model'] = 'GA_inv_var'
 
-simulate_chromosome(chromosome = {
-        'ensemble': "inv_var_weights",
-              'lm': 2, 
-            'bglr': 8, 
-             'knn': 0, 
-              'rf': 4, 
-             'rnr': 0, 
-            'svrl': 2, 
-            'full': 0, 
-             'cat': 6   
-    }) for i in range(50)]})
-
-
-best_GA_var['Model'] = 'GA_Var'
-# -
-
-px.box(pd.concat([best_GA, best_GA_var]), x = 'Model', y = 'RMSE')
-
-
-
-
-
-# +
-# # Settings -------------------------------------------------------------------
-# starting_pop_size    = 100 # Initial Population
-# selection_iterations = 300  # Select-Mutate-Evaluate Cycles
-# selection_pop_size   = 15  # population size used for mutation
-# rand_pop_size        = 5   # also randomly draw x indices 
-# rmse_sim_iterations  = 50  # resamplings of RMSE
-
-# # Initialization -------------------------------------------------------------
-
-# # for chromosomes and summary info
-# Population_History = []
-# # for distribution of rmses info. will match index in Population_History
-# out_rmses_list = []
-
-# for i in range(starting_pop_size):
-#     in_chromosome = rand_unif_chromosome()
-    
-#     # reinitialize chromosome if all models are set to 0
-#     while not check_at_least_one_mod(in_chromosome):
-#         in_chromosome = rand_unif_chromosome()
-
-#     out_rmses = np.array([simulate_chromosome(chromosome= in_chromosome) for i in range(rmse_sim_iterations)])
-
-#     in_chromosome['Iteration'] = 0
-#     in_chromosome['RMSE'] = out_rmses.mean()
-    
-#     Population_History += [in_chromosome]
-#     out_rmses_list += [out_rmses]
-    
-    
-# Population_History = pd.concat([pd.DataFrame(Population_History[i], index = [i]) for i in range(starting_pop_size)])
-
-# # Evolution ------------------------------------------------------------------
-# for iteration in tqdm.tqdm(range(1, selection_iterations+1)):
-#     # Selection:
-#     selected_chromosomes = Population_History.sort_values('RMSE').index[0:selection_pop_size]
-    
-#     if rand_pop_size > 0 :
-#         selected_chromosomes = list(selected_chromosomes)+list(np.random.choice(Population_History.index, rand_pop_size))
-
-#     for idx in selected_chromosomes:
-#         idx_chromosome = dict(Population_History.loc[idx, ['ensemble']+mod_types]).copy()
-#         # Mutate
-#         mutate_n_times = int(np.random.geometric(p=0.5, size=1)) # use a geometric distribution to sometimes get big jumps
-#         # https://distribution-explorer.github.io/discrete/geometric.html
-#         in_chromosome = mutate_chromosome(chromosome = idx_chromosome, n = mutate_n_times)
-
-#         # Confirm mutation is new and valid (not all 0)
-#         while not (check_at_least_one_mod(in_chromosome) & (idx_chromosome != in_chromosome)):
-#             in_chromosome = mutate_chromosome(chromosome = idx_chromosome, n = 1)
-
-#         out_rmses = np.array([simulate_chromosome(chromosome= in_chromosome) for i in range(rmse_sim_iterations)])
-
-#         in_chromosome['Iteration'] = iteration
-#         in_chromosome['RMSE'] = out_rmses.mean()
-
-#         # This is sloppy, but that's probably okay
-#         Population_History = pd.concat([
-#             Population_History, 
-#             pd.DataFrame(in_chromosome, index = [max(Population_History.index)+1])])
-
-#         out_rmses_list += [out_rmses]
-        
-# # Make distributions easier to work with
-# Population_RMSE_Dists = np.concatenate(out_rmses_list).reshape([len(out_rmses_list), rmse_sim_iterations])
-
-
-# path_summary = "./genetic_algo_Population_History.p"
-# path_rmse_dists = "./genetic_algo_rmse_dists.p"
-
-# pkl.dump(Population_History, open(path_summary, 'wb'))
-# pkl.dump(Population_RMSE_Dists, open(path_rmse_dists, 'wb'))
+px.box(pd.concat([GA_test_best, GA_test_best_inv_var]), x = 'Model', y = 'RMSE')
 
 # +
 path_summary = "./genetic_algo_Population_History.p"
@@ -2541,10 +2094,7 @@ else:
     performance_summary.to_csv(save_path)
 # -
 
-
-
 px.box(performance_summary, x = 'Ensemble', y = 'RMSE', color = 'Split', facet_col='Name')
-
 
 
 # +
@@ -2563,149 +2113,6 @@ performance_summary.groupby(['Name', 'Split', 'Ensemble']).agg(
     StD = ('RMSE', np.std)
               ).reset_index(
 ).sort_values(['Name', 'Split', 'Mean'])
-# -
-
-
-
-
-
-
-
-# +
-best_GA2 = pd.DataFrame({'RMSE': [
-
-simulate_chromosome(chromosome = {
-        'ensemble': "inv_rmse_weights",
-              'lm': 0, 
-            'bglr': 1, 
-             'knn': 1, 
-              'rf': 0, 
-             'rnr': 10, 
-            'svrl': 0, 
-            'full': 0, 
-             'cat': 0   
-    }, calc_phenotype_with = 'train') for i in range(50)]})
-
-
-best_GA2['Model'] = 'GA'
-
-px.box(best_GA2, x = 'Model', y = 'RMSE')
-
-# +
-best_GA2 = pd.DataFrame({'RMSE': [
-
-simulate_chromosome(chromosome = {
-        'ensemble': "inv_rmse_weights",
-              'lm': 0, 
-            'bglr': 1, 
-             'knn': 1, 
-              'rf': 0, 
-             'rnr': 10, 
-            'svrl': 0, 
-            'full': 0, 
-             'cat': 0   
-    }) for i in range(50)]})
-
-
-best_GA2['Model'] = 'GA'
-
-px.box(best_GA2, x = 'Model', y = 'RMSE')
-
-# +
-## is weighting by rmse a risky strategy? Are there some that do more poorly?
-# -
-
-
-
-
-
-# +
-# # look for saturation within a model 
-
-# # pass in a mod list so the same code can be reused for all models in addition to a single type
-
-# def resample_model_averages(individual_mods = ['cat_'+str(i) for i in range(10)],
-#                             n_iter = 5,
-#                             p = None):
-#     # get performance for all reps individually
-#     # from 2 -> max rep -1
-#     # get iter rmses by randomly combining the replicates
-#     n_mods = len(individual_mods)
-
-#     # one model ----
-#     individual_rmses = [
-#         get_rmse(observed = mod_test['y'], 
-#                  predicted= mod_test[e]) for e in individual_mods]
-#     individual_rmses = pd.DataFrame(zip(
-#         [1 for i in range(n_mods)],
-#          [[individual_mods[i]] for i in range(n_mods)],
-#         individual_rmses), columns = ['n_mods', 'drawn_mods', 'rmse'])
-
-#     # 2 to n-1 models ---- 
-#     def f(individual_mods = individual_mods, draw_mods = 2, n_iter = 5, p = None):
-#         if type(p) != list:
-#             p = [1/len(individual_mods) for i in range(len(individual_mods))]
-
-#         drawn_mods_list = [list(np.random.choice(individual_mods, draw_mods, p = p)) for i in range(n_iter)]
-#         drawn_mods_rmse = [get_rmse(observed = mod_test['y'], 
-#                                     predicted= weighted_sum_cols(
-#                                         mod_list = drawn_mods,
-#                                         mod_weights = [1/draw_mods for i in range(draw_mods)],
-#                                         df = mod_test) 
-#                                    ) for drawn_mods in drawn_mods_list]
-#         out = pd.DataFrame(zip(
-#             [draw_mods for i in range(n_iter)],
-#             drawn_mods_list,
-#             drawn_mods_rmse
-#         ), columns = ['n_mods', 'drawn_mods', 'rmse'])
-#         return(out)
-
-#     out_mid = pd.concat([f(individual_mods = individual_mods, 
-#                            draw_mods = i,
-#                            n_iter = n_iter, 
-#                            p = p
-#                            ) for i in range(2, (n_mods))], 
-#                            axis = 0)
-#     # all models ----
-#     all_reps_rmses = [
-#         get_rmse(
-#             observed = mod_test['y'], 
-#             predicted= weighted_sum_cols(
-#                 mod_list = individual_mods,
-#                 mod_weights = [1/n_mods for i in range(n_mods)],
-#                 df = mod_test) )]
-
-#     all_reps_rmses = pd.DataFrame(zip(
-#         [n_mods for i in range(n_mods)],
-#         [individual_mods for i in range(n_mods)],
-#         all_reps_rmses), columns = ['n_mods', 'drawn_mods', 'rmse'])
-
-#     out = pd.concat([individual_rmses,
-#                      out_mid,
-#                      all_reps_rmses])
-#     out = out.reset_index().drop(columns = 'index')
-#     return(out)
-
-# +
-# # best few models
-# save_path = '../output/SFigure1_Data_RMSE_Ens_SelectMods.csv'
-
-# if os.path.exists(save_path):
-#     temp = pd.read_csv(save_path)
-# else:
-#     temp = resample_model_averages(
-#         individual_mods = ['bglr_'+str(i) for i in range(10)] + ['cat_'+str(i) for i in range(10)],
-#         n_iter = 500#,
-#         #     p = uniform_by_type_weights
-#         )
-
-# temp.to_csv(save_path, index = False)
-# temp.head()
-# # px.box(temp, x = 'n_mods', y = 'rmse')
-# px.scatter(temp, x = 'n_mods', y = 'rmse', trendline = 'lowess')
-# -
-
-# # Distributions
 
 # +
 # Write out useful tables
@@ -2744,8 +2151,6 @@ pd.DataFrame(zip(all_mod_cols,
             ).to_csv('../output/01_mod_weights_test.csv')
 # -
 
-
-
 mod_train_yhats
 
 # +
@@ -2754,242 +2159,5 @@ mod_train_yhats
 # trainIndex
 # trainGroups
 
-
 phe_train = phenotype.loc[trainIndex, ['F', 'M', 'ExperimentCode', 'Year', 'GrainYield'] ]
 phe_train
-# -
-
-plt_train = mod_train_yhats.copy()
-plt_train[['y']] = mod_train[['y']]
-plt_train = pd.concat([phe_train.reset_index().drop(columns = 'index'), plt_train], axis=1)
-
-plt_train
-
-plt_train.loc[plt_train.cat_2 > 2000, ]
-
-px.scatter(plt_train, x = 'y', y = 'cat_2')
-
-
-
-
-
-
-
-
-
-
-
-
-
-# +
-# mod_train[['y']]
-# mod_train_yhats[['lm_0']]
-# -
-
-plt_train = mod_train_yhats.copy()
-plt_train[['y']] = mod_train[['y']]
-plt_train.to_csv('./temp_KLd_test.csv')
-
-plt_train
-
-
-
-px.scatter(plt_train, x = 'y', y = 'bglr_0')
-
-px.histogram(plt_train, x = 'y')
-
-px.ecdf(mod_train_yhats[['lm_0']])
-
-import scipy
-
-kl_d = scipy.special.kl_div(
-    plt_train['y'], 
-    plt_train['bglr_0']
-)
-
-kl_d
-
-plt_train['y']
-
-plt_train['bglr_0']
-
-x = plt_train['y'].copy()
-x1 = plt_train['bglr_0'].copy()
-
-x = x.sort_values()
-x1 = x1.sort_values()
-
-# +
-
-x
-# -
-
-px.histogram(kl_d)
-
-kl_d = scipy.special.kl_div(
-    plt_train['y'], 
-    plt_train['rf_0']
-)
-
-
-
-
-
-# ## Meanshift for VCA
-
-from sklearn.cluster import MeanShift
-
-# +
-if True:
-    G = np.load('../ext_data/kick_et_al_2023/data/processed/G_PCA_1.npy')
-    pRef = pd.read_csv('../ext_data/kick_et_al_2023/data/processed/tensor_ref_phenotype.csv')
-    uniqG = pRef.Pedigree.drop_duplicates().index
-    uniqGnotna = [True if e == 0 else False for e in np.isnan(G[uniqG,]).sum(axis = 1) ]
-    min_idx = uniqG[uniqGnotna]
-    G_filt = G[min_idx, :]
-
-    bws = [100+(5*i) for i in range(21)]
-    ncols = len(bws)
-
-if not os.path.exists('../output/01_MeanShift.npy'):
-    out_np = np.zeros((3199, ncols))
-
-    def try_band(bw = 2):
-        tic = time.time()
-        G_clustering = MeanShift(bandwidth=bw).fit(G_filt)
-        toc = time.time()
-        print(toc - tic)
-        print(G_clustering.labels_.max())
-        return(G_clustering)
-
-    for i in range(len(bws)):
-        print(str(i)+"/"+str(len(bws)))
-        out = try_band(bw = bws[i])
-        out_np[:, i] = out.labels_
-
-    with open('../output/01_MeanShift.npy', 'wb') as f:
-        np.save(f, out_np)
-
-    out_np.tofile('../output/01_MeanShift.csv', sep = ',')
-    GMeanShifts = out_np
-else:
-    GMeanShifts = np.load('../output/01_MeanShift.npy')
-# -
-
-pd.DataFrame(zip(bws, GMeanShifts.max(axis = 0)))
-
-# +
-# bind mean shift clusters into df to be accessed elsewhere
-temp = pd.DataFrame(GMeanShifts).set_axis(['bw'+str(e) for e in bws], axis = 1)
-temp.index = min_idx
-
-temp = temp.join(pRef.loc[:, ['Pedigree', 'F', 'M']], how = 'left')
-
-temp = temp.loc[:, ['Pedigree', 'F', 'M'] + [e for e in list(temp) if e not in ['Pedigree', 'F', 'M']]]
-temp.to_csv('../output/01_G_Clusters_MeanShift.csv')
-# -
-
-
-
-
-
-
-
-# +
-from sklearn.cluster import OPTICS
-
-if True:
-    G = np.load('../ext_data/kick_et_al_2023/data/processed/G_PCA_1.npy')
-    pRef = pd.read_csv('../ext_data/kick_et_al_2023/data/processed/tensor_ref_phenotype.csv')
-    uniqG = pRef.Pedigree.drop_duplicates().index
-    uniqGnotna = [True if e == 0 else False for e in np.isnan(G[uniqG,]).sum(axis = 1) ]
-    min_idx = uniqG[uniqGnotna]
-    G_filt = G[min_idx, :]
-
-    #min_samps = np.linspace(100, 1000, 900)
-    min_samps =[1]+[5+(5*i) for i in range(19)]+[100+(50*i) for i in range(19)]
-    ncols = len(min_samps)
-
-if not os.path.exists('../output/01_OPTICS.npy'):
-    out_np = np.zeros((3199, ncols))
-
-    def try_band(min_samp = 2):
-        tic = time.time()
-        G_clustering = OPTICS(min_samples=min_samp).fit(G_filt)
-        toc = time.time()
-        print(toc - tic)
-        print(G_clustering.labels_.max())
-        return(G_clustering)
-
-    for i in range(len(min_samps)):
-        print(str(i)+"/"+str(len(min_samps)))
-        out = try_band(min_samp = min_samps[i])
-        out_np[:, i] = out.labels_
-
-    with open('../output/01_OPTICS.npy', 'wb') as f:
-        np.save(f, out_np)
-
-    out_np.tofile('../output/01_OPTICS.csv', sep = ',')
-    GOPTICS = out_np
-else:
-    GOPTICS = np.load('../output/01_OPTICS.npy')
-
-# +
-# bind OPTICS clusters into df to be accessed elsewhere
-temp = pd.DataFrame(GOPTICS).set_axis(['min_samp'+str(e) for e in min_samps], axis = 1)
-temp.index = min_idx
-
-temp = temp.join(pRef.loc[:, ['Pedigree', 'F', 'M']], how = 'left')
-
-temp = temp.loc[:, ['Pedigree', 'F', 'M'] + [e for e in list(temp) if e not in ['Pedigree', 'F', 'M']]]
-temp.to_csv('../output/01_G_Clusters_OPTICS.csv')
-# -
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-temp = pd.DataFrame(GMeanShifts).set_axis(['i'+str(i) for i in range(GMeanShifts.shape[1])], axis=1).reset_index()
-temp = pd.wide_to_long(temp, stubnames='i', 
-                       i = 'index', 
-                       j = 'ith_bandwidth'
-                      ).reset_index()
-temp.head()
-
-tempG = pd.DataFrame(G_filt[:, 0:3]).set_axis(['PC'+str(i+1) for i in range(3)], axis=1).reset_index()
-
-tempG = tempG.merge(temp)
-tempG.head()
-
-import plotly.express as px
-px.scatter_3d(tempG, x = 'PC1', y= 'PC2', z = 'PC3', color = 'i', animation_frame='ith_bandwidth')
-
-
-
-
-
-
-
-
-
-
-
-
-
-
