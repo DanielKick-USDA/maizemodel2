@@ -2,15 +2,11 @@
 /ext_data/*
 
 # and anything not-final that could be generated again
-/output/*
+#/output/*
 /ext_data_notebooks/.ipynb_checkpoints/*
-#/ext_data_notebooks/
-
-
 
 # only track qmd and .py versions of notebooks.
 *.ipynb
-
 *.pdf
 *.png
 *.svg
@@ -22,16 +18,11 @@
 *.RDS
 *.rda
 *.json
+*.xlsx
 
 /ext_data_notebooks/.Rhistory
-/ext_data_notebooks/ExponentialDecay_fit_summary_wide.csv
 /ext_data_notebooks/raw.githubusercontent.com/plotly/datasets/master/mesh_dataset.txt
 /ext_data_notebooks/genetic_algo_Population_History.*
-/ext_data_notebooks/ModelParamsTable.*
-/ext_data_notebooks/KLd_test.csv
-/ext_data_notebooks/temp_KLd_test.csv
-/ext_data_notebooks/ExponentialDecay_fit_summary_long.csv
-
 
 # ignore zips
 *.7z
