@@ -3,7 +3,8 @@ import os, re, json, shutil
 
 import plotly.io as pio
 # Changing the renderer to fix issue. See https://stackoverflow.com/questions/54064245/plot-ly-offline-mode-in-jupyter-lab-not-displaying-plots
-pio.renderers.default = 'iframe' # or 'notebook' or 'colab' or 'jupyterlab'
+pio.renderers.default = ['iframe'][0]
+pio.templates.default = "plotly_white"
 
 import numpy as np
 import pandas as pd
@@ -37,19 +38,6 @@ import pickle as pkl
 # -
 
 overwrite_saved_files = False
-
-pio.renderers.default = [
-    'iframe',
-#     'notebook',
-#     'colab',
-#     'jupyterlab'
-][0]
-pio.templates.default = "plotly_white"
-
-"../data/atlas/models/3_finalize_model_syr__rep_G/"
-"../data/atlas/models/3_finalize_model_syr__rep_S/"
-"../data/atlas/models/3_finalize_model_syr__rep_W/"
-"../data/atlas/models/3_finalize_model_syr__rep_full/"
 
 
 # # Compare Goodness of Fit Across and Within Models
